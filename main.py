@@ -1,129 +1,159 @@
-import tensorflow as tf
-import numpy as np
-import argparse
+import time
+
 import matplotlib.pyplot as plt
+import numpy as np
+import tensorflow as tf
 
-from models.MobileNetV2 import build_mobilenet
-from models.InceptionV3 import build_inception
-from models.VGG19 import build_vgg19
-
-
+from argument_parser import get_arg_parser
 from logger import setup_logger
+from models.InceptionV3 import build_inception, train_inception
+from models.MobileNetV2 import build_mobilenet, train_mobilenet
+from models.VGG19 import build_vgg19, train_vgg19
 
 log = setup_logger(__name__)
 
 
-def load_dataset(train_location, validation_location, model_type, batch_size=16):
+def load_dataset(config):
+    # The size of our images is dependent on which network we use
     image_input = {
         "VGG19": (224, 224),
-        "MobileNetV2": (299, 299),
-        "InceptionV3": (100, 100),
+        "MobileNetV2": (224, 224),
+        "InceptionV3": (299, 299),
     }
-    image_size = image_input[model_type]
+    image_size = image_input[config.model_type]
 
+    # Retrieve the training and validation dataset from the given directories
     train_ds = tf.keras.preprocessing.image_dataset_from_directory(
-        train_location,
+        config.training_dir,
         shuffle=True,
         image_size=image_size,
-        batch_size=batch_size
+        batch_size=config.batch_size,
     )
-
     validation_ds = tf.keras.preprocessing.image_dataset_from_directory(
-        validation_location,
+        config.test_dir,
         shuffle=True,
         image_size=image_size,
-        batch_size=batch_size
+        batch_size=config.batch_size,
     )
 
-    class_names = train_ds.class_names
+    # Extract the labels of all the possible classes
+    class_names = np.array(train_ds.class_names)
 
-    plt.figure(figsize=(10, 10))
-    for images, labels in train_ds.take(1):
-        for i in range(4):
-            ax = plt.subplot(3, 3, i + 1)
-            plt.imshow(images[i].numpy().astype("uint8"))
-            plt.title(class_names[labels[i]])
-            plt.axis("off")
-            plt.savefig("./input.png")
-
-
-
-    # All pixel values [0,255] to [-1,1]
+    # All pixel values [0,255] to [0,1]
     normalization_layer = tf.keras.layers.experimental.preprocessing.Rescaling(
-        1./255)
+        1.0 / 255
+    )
     train_ds = train_ds.map(lambda x, y: (normalization_layer(x), y))
     validation_ds = validation_ds.map(lambda x, y: (normalization_layer(x), y))
 
-    # train_ds = train_ds.cache().prefetch(buffer_size=tf.data.AUTOTUNE)
-    # validation_ds = validation_ds.cache().prefetch(buffer_size=tf.data.AUTOTUNE)
-
+    # Prefetch the data so we do not have to wait for the disk reading
+    # train_ds = train_ds.cache().prefetch(buffer_size=3)
+    # validation_ds = validation_ds.cache().prefetch(buffer_size=3)
 
     return (train_ds, validation_ds, class_names)
 
-# start doing usefull stuff
 
-def get_model(model_type):
+# start doing useful stuff
+
+
+def train_model(model_type, train_ds, validation_ds, model, config):
     models = {
-        "VGG19": build_vgg19(config),
-        "MobileNetV2": build_mobilenet(config),
-        "InceptionV3": build_inception(config),
+        "VGG19": train_vgg19,
+        "MobileNetV2": train_mobilenet,
+        "InceptionV3": train_inception,
     }
-    return models[model_type]
+    return models[model_type](train_ds, validation_ds, model, config)
 
-def decode_predictions(validation_ds, class_names):
-    #Retrieve a batch of images from the test set
-    image_batch, label_batch = validation_ds.as_numpy_iterator().next()
-    predictions = model.predict_on_batch(image_batch).flatten()
 
-    # Apply a sigmoid since our model returns logits
-    predictions = tf.nn.sigmoid(predictions)
-    predictions = tf.where(predictions < 0.5, 0, 1)
+def get_model(model_type, num_classes, config):
+    if config.load_model:
+        return load_model(config)
 
-    print('Predictions:\n', predictions.numpy())
-    print('Labels:\n', label_batch)
+    models = {
+        "VGG19": build_vgg19,
+        "MobileNetV2": build_mobilenet,
+        "InceptionV3": build_inception,
+    }
+    return models[model_type](num_classes)
 
-    plt.figure(figsize=(10, 10))
-    for i in range(9):
-      ax = plt.subplot(3, 3, i + 1)
-      plt.imshow(image_batch[i].astype("uint8"))
-      plt.title(class_names[predictions[i]])
-      plt.axis("off")
-      plt.savefig("./input.png")
+
+def load_model(config):
+    return tf.keras.models.load_model(config.model_path)
+
+
+def save_model(model, config):
+    path = f"{config.model_path}/{config.model_type}-{int(time.time())}"
+    model.save(path)
+
+
+def plot_training_results(history, config):
+    log.info("Plotting training results")
+
+    # Show the training vs validation loss
+    plt.figure()
+    plt.plot(history.history["loss"], label="Training Loss")
+    plt.plot(history.history["val_loss"], label="Validation Loss")
+    plt.title(f"{config.model_type} loss")
+    plt.legend()
+    plt.savefig(f"./{config.model_type}-loss.png")
+
+    # Show the training vs validation accuracy
+    plt.figure()
+    plt.plot(history.history["acc"], label="Training Accuracy")
+    plt.plot(history.history["val_acc"], label="Validation Accuracy")
+    plt.title(f"{config.model_type} accuracy")
+    plt.legend()
+    plt.savefig(f"./{config.model_type}-accuracy.png")
 
 
 def main(config):
     log.info("Loading dataset...")
-    train_ds, validation_ds, class_names = load_dataset(config.training_dir, config.test_dir, config.model_type)
+    train_ds, validation_ds, class_names = load_dataset(config)
     log.info("Loading dataset done")
 
     log.info("Loading model...")
-    model = get_model(config.model_type)
+    model = get_model(config.model_type, len(class_names), config)
     log.info("Loading model done")
 
-    log.info("Predicting...")
-    # predictions = model.predict(validation_ds, verbose=1)
+    log.info("Training...")
+    model, history = train_model(
+        config.model_type, train_ds, validation_ds, model, config
+    )
+
+    plot_training_results(history, config)
+    log.info("Training Done")
+
+    if config.skip_saving_model:
+        # We save the model by default, but it can be turned off
+        log.info("Saving model...")
+        save_model(model, config)
+        log.info("Saved model")
+
+    log.info("Predicting after training...")
+    # We take one batch of (16) images and show 9 of them
+    # together with their predicted labels
+
+    prediction_batch = model.predict(validation_ds, verbose=1)
+    prediction_id = np.argmax(prediction_batch, axis=-1)
+    predicted_label_batch = class_names[prediction_id]
+
+    for image_batch, label_set in validation_ds.take(1):
+        plt.figure(figsize=(10, 10))
+        plt.subplots_adjust(hspace=0.5)
+        for n in range(min(9, config.batch_size)):
+            plt.subplot(3, 3, n + 1)
+            plt.imshow(image_batch[n])
+            plt.title(predicted_label_batch[n].title())
+            plt.axis("off")
+            _ = plt.suptitle(f"{config.model_type} predictions")
+            plt.savefig(f"./{config.model_type}-predictions.png")
+
     log.info("Prediction Done")
 
-    log.info("Decode, aka convert the probabilities to class labels")
-    decode_predictions(class_names)
-    log.info("Decode Done")
-
-
-def get_arg_parser():
-    parser = argparse.ArgumentParser()
-
-    parser.add_argument("training_dir", help="input directory where all training images are found")
-    parser.add_argument("test_dir", help="input directory where all test images are found")
-    parser.add_argument("--model_type", help="Which base model to transfer learning from", default="MobileNetV2", choices=["VGG19", "MobileNetV2", "InceptionV3"])
-    parser.add_argument("--learning_rate", help="Base learning rate for optimizers", default=0.0001, type=float)
-    parser.add_argument("--dropout_rate", help="Dropout rate for the dropout layers", default=0.2, type=float)
-    parser.add_argument("--with_dropout", help="Determines if we are going to use a dropout layer in the models", store_action=True)
-    parser.add_argument("--epochs", help="Number of epochs to run the model for", default=10, type=int)
-
-    return parser.parse_args()
-
+    log.info("  --Completed--  ")
 
 
 if __name__ == "__main__":
+    # The program starts here
     config = get_arg_parser()
     main(config)
