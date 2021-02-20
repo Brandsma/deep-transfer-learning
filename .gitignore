@@ -1,6 +1,5 @@
-Test/
-Training/
 saved_models/
+fruits-360/
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
