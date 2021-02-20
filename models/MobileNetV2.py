@@ -32,7 +32,7 @@ def train_mobilenet(train_ds, validation_ds, model, config):
 
     # We train the model using an optimizer and SparseCategoricalCrossentropy
     model.compile(
-        optimizer=tf.keras.optimizers.Adam(),
+        optimizer=tf.keras.optimizers.Adam(learning_rate=config.learning_rate),
         loss=tf.keras.losses.SparseCategoricalCrossentropy(from_logits=True),
         metrics=["acc"],
     )

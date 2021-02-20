@@ -34,20 +34,20 @@ def get_arg_parser():
     parser.add_argument(
         "--learning_rate",
         help="Base learning rate for optimizers",
-        default=0.0001,
+        default=0.001,
         type=float,
     )
-    parser.add_argument(
-        "--dropout_rate",
-        help="Dropout rate for the dropout layers",
-        default=0.2,
-        type=float,
-    )
-    parser.add_argument(
-        "--with_dropout",
-        help="Determines if we are going to use a dropout layer in the models",
-        action="store_true",
-    )
+    # parser.add_argument(
+    #     "--dropout_rate",
+    #     help="Dropout rate for the dropout layers",
+    #     default=0.2,
+    #     type=float,
+    # )
+    # parser.add_argument(
+    #     "--with_dropout",
+    #     help="Determines if we are going to use a dropout layer in the models",
+    #     action="store_true",
+    # )
     parser.add_argument(
         "--epochs", help="Number of epochs to run the model for", default=3, type=int
     )

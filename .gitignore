@@ -1,6 +1,9 @@
 saved_models/
 fruits-360/
 
+# Emacs files
+.#*
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
