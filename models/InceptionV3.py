@@ -8,7 +8,7 @@ log = setup_logger(__name__)
 # https://tfhub.dev/google/imagenet/inception_v3/feature_vector/4
 
 
-def build_inception(num_classes):
+def build_inception(config, num_classes):
     log.info("Building Inception V3")
     preprocess_input = tf.keras.applications.inception_v3.preprocess_input
     base_model = InceptionV3(include_top=False, weights="imagenet")

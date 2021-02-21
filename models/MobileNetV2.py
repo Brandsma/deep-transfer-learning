@@ -1,11 +1,12 @@
 import tensorflow as tf
 import tensorflow_hub as hub
+from keras.layers import Dropout
 from logger import setup_logger
 
 log = setup_logger(__name__)
 
 
-def build_mobilenet(num_classes):
+def build_mobilenet(config, num_classes):
     log.info("Building Mobile Net V2")
     # CONSTANTS
     IMAGE_SHAPE = (224, 224)
@@ -22,7 +23,14 @@ def build_mobilenet(num_classes):
     classification_layer = tf.keras.layers.Dense(num_classes)
 
     # Build the classifier
-    classifier = tf.keras.Sequential([feature_extractor_layer, classification_layer])
+    classifier = tf.keras.Sequential()
+
+    classifier.add(feature_extractor_layer)
+    if config.with_dropout:
+        classifier.add(Dropout(config.dropout_rate))
+    classifier.add(classification_layer)
+
+    classifier.summary()
 
     return classifier
 

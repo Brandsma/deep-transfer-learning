@@ -2,6 +2,8 @@ import tensorflow.keras as keras
 from keras.applications.vgg19 import decode_predictions, preprocess_input
 from logger import setup_logger
 from tensorflow.keras.applications.vgg19 import VGG19
+from tensorflow.keras.layers import Dropout
+from tensorflow.keras.models import Sequential
 
 log = setup_logger(__name__)
 
@@ -9,22 +11,21 @@ log = setup_logger(__name__)
 def build_vgg19(config, num_classes):
     log.info("Building VGG19")
 
-    base_model = VGG19(
+    model = VGG19(
         input_shape=(224, 224, 3), weights="imagenet", include_top=False, classes=3
     )
 
-    inputs = keras.Input(shape=(224, 224, 3))
-    x = preprocess_input(inputs)
-    output = base_model(x)
+    # check structure and layer names before looping
+    model.summary()
 
-    model = keras.Model(inputs, output)
+    # loop through layers, add Dropout after layers 'fc1' and 'fc2'
+    if config.with_dropout:
+        updated_model = Sequential()
 
-    model.compile(
-        optimizer=keras.optimizers.Adam(lr=config.learning_rate),
-        loss=keras.losses.SparseCategoricalCrossentropy(from_logits=True),
-        metrics=["accuracy"],
-    )
+    model = updated_model
 
+    # check structure
+    model.summary()
     return model
 
 

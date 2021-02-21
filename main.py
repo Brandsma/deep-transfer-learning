@@ -74,7 +74,7 @@ def get_model(model_type, num_classes, config):
         "MobileNetV2": build_mobilenet,
         "InceptionV3": build_inception,
     }
-    return models[model_type](num_classes)
+    return models[model_type](config, num_classes)
 
 
 def load_model(config):
