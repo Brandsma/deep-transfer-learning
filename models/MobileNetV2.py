@@ -3,6 +3,8 @@ import tensorflow_hub as hub
 from keras.layers import Dropout
 from logger import setup_logger
 
+from models.util import get_optimizer
+
 log = setup_logger(__name__)
 
 
@@ -40,7 +42,7 @@ def train_mobilenet(train_ds, validation_ds, model, config):
 
     # We train the model using an optimizer and SparseCategoricalCrossentropy
     model.compile(
-        optimizer=tf.keras.optimizers.Adam(learning_rate=config.learning_rate),
+        optimizer=get_optimizer(config.optimizer, config.learning_rate),
         loss=tf.keras.losses.SparseCategoricalCrossentropy(from_logits=True),
         metrics=["acc"],
     )

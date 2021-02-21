@@ -32,6 +32,12 @@ def get_arg_parser():
         default="./saved_models",
     )
     parser.add_argument(
+        "--optimizer",
+        help="Which optimizer to use for gradient descent",
+        default="adam",
+        choices=["adam", "adamax", "sgd"],
+    )
+    parser.add_argument(
         "--learning_rate",
         help="Base learning rate for optimizers",
         default=0.001,
