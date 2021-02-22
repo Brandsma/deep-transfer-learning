@@ -46,11 +46,18 @@ def load_dataset(config):
     train_ds = train_ds.map(lambda x, y: (normalization_layer(x), y))
     validation_ds = validation_ds.map(lambda x, y: (normalization_layer(x), y))
 
-    # Prefetch the data so we do not have to wait for the disk reading
-    # train_ds = train_ds.cache().prefetch(buffer_size=3)
-    # validation_ds = validation_ds.cache().prefetch(buffer_size=3)
+    # Create a test dataset from 20% of the validation dataset
+    val_batches = tf.data.experimental.cardinality(validation_ds)
+    test_ds = validation_ds.take(val_batches // 5)
+    validation_ds = validation_ds.skip(val_batches // 5)
 
-    return (train_ds, validation_ds, class_names)
+    # Prefetch the data so we do not have to wait for the disk reading
+    AUTOTUNE = tf.data.AUTOTUNE
+    train_ds = train_ds.prefetch(buffer_size=AUTOTUNE)
+    validation_ds = validation_ds.prefetch(buffer_size=AUTOTUNE)
+    test_ds = test_ds.prefetch(buffer_size=AUTOTUNE)
+
+    return (train_ds, validation_ds, test_ds, class_names)
 
 
 # start doing useful stuff
@@ -108,7 +115,7 @@ def plot_training_results(history, config):
 
 def main(config):
     log.info("Loading dataset...")
-    train_ds, validation_ds, class_names = load_dataset(config)
+    train_ds, validation_ds, test_ds, class_names = load_dataset(config)
     log.info("Loading dataset done")
 
     log.info("Loading model...")

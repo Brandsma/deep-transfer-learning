@@ -1,33 +1,48 @@
-import tensorflow.keras as keras
-from keras.applications.vgg19 import decode_predictions, preprocess_input
+import tensorflow as tf
 from logger import setup_logger
 from tensorflow.keras.applications.vgg19 import VGG19
 from tensorflow.keras.layers import Dropout
 from tensorflow.keras.models import Sequential
 
+from models.util import get_optimizer
+
 log = setup_logger(__name__)
+
+# https://www.tensorflow.org/tutorials/images/transfer_learning
 
 
 def build_vgg19(config, num_classes):
     log.info("Building VGG19")
 
-    model = VGG19(
-        input_shape=(224, 224, 3), weights="imagenet", include_top=False, classes=3
+    feature_extractor_layer = VGG19(
+        input_shape=(224, 224, 3), weights="imagenet", include_top=False
     )
+    feature_extractor_layer.trainable = False
 
-    # check structure and layer names before looping
-    model.summary()
+    # Build a classification layer
+    classifier = Sequential()
 
-    # loop through layers, add Dropout after layers 'fc1' and 'fc2'
+    classifier.add(feature_extractor_layer)
+    classifier.add(tf.keras.layers.GlobalAveragePooling2D())
+
     if config.with_dropout:
-        updated_model = Sequential()
+        classifier.add(Dropout(config.dropout_rate))
 
-    model = updated_model
+    classifier.add(tf.keras.layers.Dense(num_classes))
 
-    # check structure
-    model.summary()
-    return model
+    return classifier
 
 
 def train_vgg19(train_ds, validation_ds, model, config):
-    pass
+    log.info("Training VGG19")
+
+    # We train the model using an optimizer and SparseCategoricalCrossentropy
+    model.compile(
+        optimizer=get_optimizer(config.optimizer, config.learning_rate),
+        loss=tf.keras.losses.SparseCategoricalCrossentropy(from_logits=True),
+        metrics=["acc"],
+    )
+
+    history = model.fit(train_ds, epochs=config.epochs, validation_data=validation_ds)
+
+    return model, history
