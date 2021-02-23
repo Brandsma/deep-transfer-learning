@@ -2,6 +2,7 @@ import time
 
 import matplotlib.pyplot as plt
 import numpy as np
+import pandas as pd
 import tensorflow as tf
 
 from argument_parser import get_arg_parser
@@ -93,8 +94,14 @@ def save_model(model, config):
     model.save(path)
 
 
-def plot_training_results(history, config):
-    log.info("Plotting training results")
+def save_training_results(history, config):
+    log.info("Saving training results")
+
+    # Save the history to a csv
+    hist_df = pd.DataFrame.from_dict(history.history)
+    hist_df.to_csv(
+        f"./{config.model_type}-{config.optimizer}{f'-dropout_{config.dropout_rate}' if config.with_dropout else ''}-epochs_{config.epochs}-history.csv"
+    )
 
     # Show the training vs validation loss
     plt.figure()
@@ -127,7 +134,7 @@ def main(config):
         config.model_type, train_ds, validation_ds, model, config
     )
 
-    plot_training_results(history, config)
+    save_training_results(history, config)
     log.info("Training Done")
 
     if config.skip_saving_model:
