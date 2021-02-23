@@ -147,11 +147,11 @@ def main(config):
     # We take one batch of (16) images and show 9 of them
     # together with their predicted labels
 
-    prediction_batch = model.predict(validation_ds, verbose=1)
+    prediction_batch = model.predict(test_ds, verbose=1)
     prediction_id = np.argmax(prediction_batch, axis=-1)
     predicted_label_batch = class_names[prediction_id]
 
-    for image_batch, label_set in validation_ds.take(1):
+    for image_batch, label_set in test_ds.take(1):
         plt.figure(figsize=(10, 10))
         plt.subplots_adjust(hspace=0.5)
         for n in range(min(9, config.batch_size)):
