@@ -13,8 +13,18 @@ def get_arg_parser():
     parser.add_argument(
         "--model_type",
         help="Which base model to transfer learning from",
-        default="MobileNetV2",
-        choices=["VGG19", "MobileNetV2", "InceptionV3"],
+        default="MobileNet",
+        choices=["VGG19", "MobileNet", "ResNet50"],
+    )
+    parser.add_argument(
+        "--normalize_cm",
+        help="Normalize the confusion matrix values",
+        action="store_true",
+    )
+    parser.add_argument(
+        "--load_cifar",
+        help="Whether to load cifar instead of the dataset in the given folders",
+        action="store_true",
     )
     parser.add_argument(
         "--skip_saving_model",

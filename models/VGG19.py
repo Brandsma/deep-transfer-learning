@@ -4,7 +4,7 @@ from tensorflow.keras.applications.vgg19 import VGG19
 from tensorflow.keras.layers import Dropout
 from tensorflow.keras.models import Sequential
 
-from models.util import get_optimizer
+from models.util import get_callbacks, get_optimizer
 
 log = setup_logger(__name__)
 
@@ -13,9 +13,13 @@ log = setup_logger(__name__)
 
 def build_vgg19(config, num_classes):
     log.info("Building VGG19")
+    if config.load_cifar:
+        IMAGE_SHAPE = (32, 32, 3)
+    else:
+        IMAGE_SHAPE = (224, 224, 3)
 
     feature_extractor_layer = VGG19(
-        input_shape=(224, 224, 3), weights="imagenet", include_top=False
+        input_shape=IMAGE_SHAPE, weights="imagenet", include_top=False
     )
     feature_extractor_layer.trainable = False
 
@@ -43,6 +47,11 @@ def train_vgg19(train_ds, validation_ds, model, config):
         metrics=["acc"],
     )
 
-    history = model.fit(train_ds, epochs=config.epochs, validation_data=validation_ds)
+    history = model.fit(
+        train_ds,
+        epochs=config.epochs,
+        validation_data=validation_ds,
+        callbacks=get_callbacks(),
+    )
 
     return model, history

@@ -1,25 +1,29 @@
 import tensorflow as tf
 import tensorflow_hub as hub
+from keras.applications import MobileNet
 from keras.layers import Dropout
 from logger import setup_logger
 
-from models.util import get_optimizer
+from models.util import get_callbacks, get_optimizer
 
 log = setup_logger(__name__)
 
 
 def build_mobilenet(config, num_classes):
-    log.info("Building Mobile Net V2")
+    log.info("Building Mobile Net")
     # CONSTANTS
-    IMAGE_SHAPE = (224, 224)
+    if config.load_cifar:
+        IMAGE_SHAPE = (32, 32, 3)
+    else:
+        IMAGE_SHAPE = (224, 224, 3)
 
-    # We download the headless model from tensorflow hub
-    classifier_model = (
-        "https://tfhub.dev/google/tf2-preview/mobilenet_v2/feature_vector/4"
+    feature_extractor_layer = MobileNet(
+        include_top=False,
+        weights="imagenet",
+        input_shape=IMAGE_SHAPE,
+        classes=num_classes,
     )
-    feature_extractor_layer = hub.KerasLayer(
-        classifier_model, input_shape=IMAGE_SHAPE + (3,), trainable=False
-    )
+    feature_extractor_layer.trainable = False
 
     # Add a classification layer, which is a dense layer connected to num_classes nodes
     classification_layer = tf.keras.layers.Dense(num_classes)
@@ -28,6 +32,8 @@ def build_mobilenet(config, num_classes):
     classifier = tf.keras.Sequential()
 
     classifier.add(feature_extractor_layer)
+    classifier.add(tf.keras.layers.GlobalAveragePooling2D())
+
     if config.with_dropout:
         classifier.add(Dropout(config.dropout_rate))
     classifier.add(classification_layer)
@@ -38,7 +44,7 @@ def build_mobilenet(config, num_classes):
 
 
 def train_mobilenet(train_ds, validation_ds, model, config):
-    log.info("Training Mobile Net V2")
+    log.info("Training Mobile Net")
 
     # We train the model using an optimizer and SparseCategoricalCrossentropy
     model.compile(
@@ -47,6 +53,11 @@ def train_mobilenet(train_ds, validation_ds, model, config):
         metrics=["acc"],
     )
 
-    history = model.fit(train_ds, epochs=config.epochs, validation_data=validation_ds)
+    history = model.fit(
+        train_ds,
+        epochs=config.epochs,
+        validation_data=validation_ds,
+        callbacks=get_callbacks(),
+    )
 
     return model, history

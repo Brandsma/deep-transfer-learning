@@ -1,20 +1,63 @@
+import os
 import time
 
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 import tensorflow as tf
+from keras.datasets import cifar10
+from sklearn.metrics import confusion_matrix
+from sklearn.model_selection import train_test_split
 
 from argument_parser import get_arg_parser
 from logger import setup_logger
-from models.InceptionV3 import build_inception, train_inception
 from models.MobileNetV2 import build_mobilenet, train_mobilenet
+from models.ResNet50 import build_resnet, train_resnet
 from models.VGG19 import build_vgg19, train_vgg19
+from results import save_test_results, save_training_results
 
 log = setup_logger(__name__)
 
 
+def load_cifar(config):
+    (x_train, y_train), (x_test, y_test) = cifar10.load_data()
+    x_train, x_val, y_train, y_val = train_test_split(x_train, y_train, test_size=0.3)
+
+    train_ds = tf.data.Dataset.from_tensor_slices((x_train, y_train)).batch(
+        config.batch_size
+    )
+    validation_ds = tf.data.Dataset.from_tensor_slices((x_val, y_val)).batch(
+        config.batch_size
+    )
+    test_ds = tf.data.Dataset.from_tensor_slices((x_test, y_test)).batch(
+        config.batch_size
+    )
+
+    class_names = [
+        "airplane",
+        "automobile",
+        "bird",
+        "cat",
+        "deer",
+        "dog",
+        "frog",
+        "horse",
+        "ship",
+        "truck",
+    ]
+
+    # Prefetch the data so we do not have to wait for the disk reading
+    AUTOTUNE = tf.data.AUTOTUNE
+    train_ds = train_ds.prefetch(buffer_size=AUTOTUNE)
+    validation_ds = validation_ds.prefetch(buffer_size=AUTOTUNE)
+    test_ds = test_ds.prefetch(buffer_size=AUTOTUNE)
+
+    return (train_ds, validation_ds, test_ds, np.array(class_names))
+
+
 def load_dataset(config):
+    if config.load_cifar:
+        return load_cifar(config)
     # The size of our images is dependent on which network we use
     image_input = {
         "VGG19": (224, 224),
@@ -67,8 +110,8 @@ def load_dataset(config):
 def train_model(model_type, train_ds, validation_ds, model, config):
     models = {
         "VGG19": train_vgg19,
-        "MobileNetV2": train_mobilenet,
-        "InceptionV3": train_inception,
+        "MobileNet": train_mobilenet,
+        "ResNet50": train_resnet,
     }
     return models[model_type](train_ds, validation_ds, model, config)
 
@@ -79,8 +122,8 @@ def get_model(model_type, num_classes, config):
 
     models = {
         "VGG19": build_vgg19,
-        "MobileNetV2": build_mobilenet,
-        "InceptionV3": build_inception,
+        "MobileNet": build_mobilenet,
+        "ResNet50": build_resnet,
     }
     return models[model_type](config, num_classes)
 
@@ -94,33 +137,17 @@ def save_model(model, config):
     model.save(path)
 
 
-def save_training_results(history, config):
-    log.info("Saving training results")
-
-    # Save the history to a csv
-    hist_df = pd.DataFrame.from_dict(history.history)
-    hist_df.to_csv(
-        f"./{config.model_type}-{config.optimizer}{f'-dropout_{config.dropout_rate}' if config.with_dropout else ''}-epochs_{config.epochs}-history.csv"
-    )
-
-    # Show the training vs validation loss
-    plt.figure()
-    plt.plot(history.history["loss"], label="Training Loss")
-    plt.plot(history.history["val_loss"], label="Validation Loss")
-    plt.title(f"{config.model_type} loss")
-    plt.legend()
-    plt.savefig(f"./{config.model_type}-loss.png")
-
-    # Show the training vs validation accuracy
-    plt.figure()
-    plt.plot(history.history["acc"], label="Training Accuracy")
-    plt.plot(history.history["val_acc"], label="Validation Accuracy")
-    plt.title(f"{config.model_type} accuracy")
-    plt.legend()
-    plt.savefig(f"./{config.model_type}-accuracy.png")
-
-
 def main(config):
+    log.info("Setting up...")
+    name = f"{config.model_type}-{config.optimizer}{f'-dropout_{config.dropout_rate}' if config.with_dropout else ''}-epochs_{config.epochs}"
+    result_dir = f"./results/{name}/"
+    try:
+        os.makedirs(result_dir)
+    except OSError as error:
+        log.warn(error)
+
+    log.info("Setup complete")
+
     log.info("Loading dataset...")
     train_ds, validation_ds, test_ds, class_names = load_dataset(config)
     log.info("Loading dataset done")
@@ -134,7 +161,7 @@ def main(config):
         config.model_type, train_ds, validation_ds, model, config
     )
 
-    save_training_results(history, config)
+    save_training_results(result_dir, name, history, config)
     log.info("Training Done")
 
     if config.skip_saving_model:
@@ -143,26 +170,18 @@ def main(config):
         save_model(model, config)
         log.info("Saved model")
 
-    log.info("Predicting after training...")
-    # We take one batch of (16) images and show 9 of them
-    # together with their predicted labels
+    log.info("Evaluating...")
 
-    prediction_batch = model.predict(test_ds, verbose=1)
-    prediction_id = np.argmax(prediction_batch, axis=-1)
-    predicted_label_batch = class_names[prediction_id]
+    save_test_results(
+        result_dir,
+        name,
+        model,
+        test_ds,
+        class_names,
+        config,
+    )
 
-    for image_batch, label_set in test_ds.take(1):
-        plt.figure(figsize=(10, 10))
-        plt.subplots_adjust(hspace=0.5)
-        for n in range(min(9, config.batch_size)):
-            plt.subplot(3, 3, n + 1)
-            plt.imshow(image_batch[n])
-            plt.title(predicted_label_batch[n].title())
-            plt.axis("off")
-            _ = plt.suptitle(f"{config.model_type} predictions")
-            plt.savefig(f"./{config.model_type}-predictions.png")
-
-    log.info("Prediction Done")
+    log.info("Evaluation Done")
 
     log.info("  --Completed--  ")
 
