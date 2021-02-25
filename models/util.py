@@ -1,12 +1,12 @@
 from logger import setup_logger
-from tensorflow.keras.callbacks import EarlyStopping
+from tensorflow.keras.callbacks import EarlyStopping, ReduceLROnPlateau
 from tensorflow.keras.optimizers import SGD, Adam, Adamax
 
 log = setup_logger(__name__)
 
 
 def get_callbacks():
-    return [EarlyStopping()]
+    return [EarlyStopping(patience=20), ReduceLROnPlateau()]
 
 
 def get_optimizer(optimizer_type, learning_rate):
