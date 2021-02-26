@@ -26,10 +26,10 @@ def load_cifar(config):
     train_ds = tf.data.Dataset.from_tensor_slices((x_train, y_train)).batch(
         config.batch_size
     )
-    validation_ds = tf.data.Dataset.from_tensor_slices((x_val, y_val)).batch(
+    validation_ds = tf.data.Dataset.from_tensor_slices((x_test, y_test)).batch(
         config.batch_size
     )
-    test_ds = tf.data.Dataset.from_tensor_slices((x_test, y_test)).batch(
+    test_ds = tf.data.Dataset.from_tensor_slices((x_val, y_val)).batch(
         config.batch_size
     )
 

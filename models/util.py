@@ -6,7 +6,8 @@ log = setup_logger(__name__)
 
 
 def get_callbacks():
-    return [EarlyStopping(patience=20), ReduceLROnPlateau()]
+    # return [EarlyStopping(patience=20), ReduceLROnPlateau()]
+    return [ReduceLROnPlateau()]
 
 
 def get_optimizer(optimizer_type, learning_rate):
