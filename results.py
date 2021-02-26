@@ -56,10 +56,10 @@ def save_test_results(result_dir, name, model, test_ds, class_names, config):
     # We take one batch of (16) images and show 9 of them
     # together with their predicted labels
     for image_batch, label_set in test_ds.take(1):
-        plt.figure(figsize=(5, 5))
+        plt.figure(figsize=(10, 5))
         plt.subplots_adjust(hspace=0.5)
-        for n in range(min(9, config.batch_size)):
-            plt.subplot(3, 3, n + 1)
+        for n in range(min(10, config.batch_size)):
+            plt.subplot(2, 5, n + 1)
             plt.imshow(image_batch[n])
             plt.title(predicted_label_batch[n].title())
             plt.axis("off")
