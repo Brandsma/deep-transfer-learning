@@ -104,9 +104,6 @@ def load_dataset(config):
     return (train_ds, validation_ds, test_ds, class_names)
 
 
-# start doing useful stuff
-
-
 def train_model(model_type, train_ds, validation_ds, model, config):
     models = {
         "VGG19": train_vgg19,

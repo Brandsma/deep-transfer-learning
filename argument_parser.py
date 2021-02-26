@@ -4,12 +4,12 @@ import argparse
 def get_arg_parser():
     parser = argparse.ArgumentParser()
 
-    parser.add_argument(
-        "training_dir", help="input directory where all training images are found"
-    )
-    parser.add_argument(
-        "test_dir", help="input directory where all test images are found"
-    )
+    # parser.add_argument(
+    #     "training_dir", help="input directory where all training images are found"
+    # )
+    # parser.add_argument(
+    #     "test_dir", help="input directory where all test images are found"
+    # )
     parser.add_argument(
         "--model_type",
         help="Which base model to transfer learning from",
